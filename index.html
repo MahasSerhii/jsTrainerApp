@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JS Function Mastery Game</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use Inter font -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+    
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f7fafc;
+        transition: background-color 0.4s ease, color 0.4s ease;
+    }
+
+    /* Dark Mode Global Styles */
+    body.dark {
+        background-color: #0f172a;
+        color: #f1f5f9;
+    }
+
+    .code-block {
+        background-color: #1f2937;
+        color: #d1d5db;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+
+    /* Dark Mode Overrides */
+    .dark #game-container {
+        background-color: #1e293b;
+        color: #e2e8f0;
+        border: 1px solid #334155;
+    }
+
+    .dark #badge-count {
+        background-color: #334155;
+        color: #fde047;
+    }
+
+    .dark textarea {
+        background-color: #0f172a;
+        color: #f8fafc;
+        border-color: #334155;
+    }
+
+    .dark h1, .dark label { color: #f8fafc; }
+    .dark .text-gray-600 { color: #94a3b8; }
+    
+    .correct { background-color: #d1fae5; color: #065f46; }
+    .dark .correct { background-color: #064e3b; color: #6ee7b7; }
+    
+    .incorrect { background-color: #fee2e2; color: #991b1b; }
+    .dark .incorrect { background-color: #7f1d1d; color: #fca5a5; }
+
+    .btn-primary { transition: all 0.15s ease-in-out; }
+    .btn-primary:hover { transform: translateY(-1px); }
+
+        /* The sliding animation for the toggle thumb */
+    #toggle-thumb {
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease;
+    }
+
+    /* Icon fade/rotate animations */
+    #icon-sun, #icon-moon {
+        transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .dark #toggle-thumb {
+        transform: translateX(1.5rem); /* Moves the thumb to the right */
+    }
+
+    /* Glow effect for dark mode toggle */
+    .dark #theme-toggle {
+        box-shadow: 0 0 10px rgba(99, 102, 241, 0.6);
+    }
+</style>
+    <!-- Firebase Imports for Canvas Environment (Required) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global variables provided by the Canvas environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        if (Object.keys(firebaseConfig).length > 0) {
+            const app = initializeApp(firebaseConfig);
+            const db = getFirestore(app);
+            const auth = getAuth(app);
+            setLogLevel('debug');
+
+            onAuthStateChanged(auth, async (user) => {
+                if (!user) {
+                    try {
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (error) {
+                        console.error("Firebase Sign-In Error:", error);
+                    }
+                }
+            });
+        }
+    </script>
+</head>
+<body class="p-4 md:p-8 min-h-screen flex items-start justify-center relative">
+
+    <!-- Badge Container (Top Right Corner) -->
+ <div id="badge-container" class="absolute top-4 right-4 flex flex-col items-end space-y-3 z-10">
+    <div class="flex items-center space-x-2">
+        <span id="badge-count" class="text-sm font-semibold text-gray-700 bg-yellow-200 rounded-full px-3 py-1 shadow-sm">Badges: 0</span>
+        <div id="badges-earned" class="flex space-x-1"></div>
+    </div>
+    
+ <div class="flex items-center">
+    <button onclick="toggleDarkMode()" 
+            id="theme-toggle"
+            class="relative inline-flex h-8 w-14 items-center rounded-full bg-gray-300 dark:bg-indigo-600 transition-colors duration-300 focus:outline-none shadow-inner">
+        
+        <span id="toggle-thumb" 
+              class="absolute left-1 inline-block h-6 w-6 transform rounded-full bg-white shadow-md flex items-center justify-center">
+            
+            <svg id="icon-sun" class="block dark:hidden h-4 w-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z"></path>
+            </svg>
+            
+            <svg id="icon-moon" class="hidden dark:block h-4 w-4 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path>
+            </svg>
+        </span>
+    </button>
+</div>
+</div>
+
+    <div id="game-container" class="w-full max-w-2xl bg-white shadow-2xl rounded-xl p-6 md:p-8">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">JS Function Trainer</h1>
+        <p class="text-center text-gray-600 mb-8">Fill in the missing JavaScript code (e.g., a callback function or argument) to get the desired result.</p>
+
+        <!-- Challenge Area -->
+        <div class="bg-indigo-50 border-l-4 border-indigo-500 rounded-lg p-4 mb-6">
+            <h2 class="text-xl font-semibold text-indigo-800 mb-2" id="challenge-title"></h2>
+            <p class="text-sm text-indigo-600 mb-4" id="challenge-tip"></p>
+            <div class="code-block text-sm" id="challenge-setup"></div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="mb-6">
+            <label for="user-input" class="block text-sm font-medium text-gray-700 mb-2">
+                Your Code (What goes in `/* YOUR CODE HERE */`):
+            </label>
+            <textarea id="user-input" rows="3" class="w-full p-3 border border-gray-300 rounded-lg shadow-inner focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm" placeholder="Example: (n) => n * 2"></textarea>
+            <button id="check-btn" onclick="checkAnswer()" class="btn-primary w-full mt-4 px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50">
+                Check Answer
+            </button>
+        </div>
+
+        <!-- Result/Feedback Area -->
+        <div id="feedback-area" class="mt-8 p-4 rounded-lg hidden">
+            <div class="font-bold mb-2 text-lg" id="feedback-header"></div>
+            <div id="feedback-message" class="text-sm mb-3"></div>
+            <div id="result-display" class="code-block text-xs"></div>
+        </div>
+
+        <!-- Navigation and Progress -->
+       <div class="flex flex-col md:flex-row justify-between items-center mt-6 pt-4 border-t border-gray-200 gap-4">
+           <p id="progress-text" class="text-sm text-gray-600 font-medium"></p>
+    <div class="flex space-x-2">
+        <button id="prev-btn" onclick="prevChallenge()" class="px-10 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg shadow-md hover:bg-gray-300 focus:outline-none disabled:opacity-50">
+            &larr; Back
+        </button>
+        <button id="next-btn" onclick="nextChallenge()" class="px-10 py-2 bg-green-500 text-white font-semibold rounded-lg shadow-md hover:bg-green-600 focus:outline-none disabled:opacity-50" disabled>
+            Next &rarr;
+        </button>
+    </div>
+</div>
+    </div>
+    
+    <!-- Badge Modal -->
+  <div id="badge-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-2xl p-8 max-w-sm w-full mx-4 text-center shadow-2xl transform transition-all">
+        <div class="mb-4 flex justify-center">
+            <svg class="w-24 h-24" viewBox="0 0 100 100">
+                <defs>
+                    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#fde68a;stop-opacity:1" />
+                        <stop offset="50%" style="stop-color:#f59e0b;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#b45309;stop-opacity:1" />
+                    </linearGradient>
+                </defs>
+                <circle cx="50" cy="58" r="35" fill="url(#gold)" stroke="#92400e" stroke-width="2" />
+                <path d="M35 5 L40 45 L50 48 L60 45 L65 5 Z" fill="#ef4444" stroke="#b91c1c" stroke-width="2" />
+                <path d="M42 5 L45 45 L50 47 L55 45 L58 5 Z" fill="#dc2626" />
+                <circle cx="50" cy="58" r="25" fill="none" stroke="#fef3c7" stroke-width="2" stroke-dasharray="2,2" />
+                <text x="50" y="68" font-family="Arial" font-size="28" font-weight="bold" fill="#92400e" text-anchor="middle">★</text>
+            </svg>
+        </div>
+        <h3 class="text-2xl font-bold text-gray-800 mb-2">Achievement Unlocked!</h3>
+        <p id="modal-message" class="text-indigo-600 font-semibold mb-6"></p>
+        <button onclick="hideBadgeModal()" class="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors">
+            Keep Going!
+        </button>
+    </div>
+</div>
+
+
+    <script>
+        const CHALLENGES = [
+            // --- Array Transformation & Iteration (1-10) ---
+            { name: "1. Array.prototype.map() - Doubling", setup: "const numbers = [2, 4, 6]; \nconst result = numbers.map( /* YOUR CODE HERE */ );", evaluation: (input) => { const numbers = [2, 4, 6]; return eval(`numbers.map(${input})`); }, correctResult: [4, 8, 12], tip: "Callback: element => new_element", answerSnippet: "n => n * 2", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map" },
+            { name: "2. Array.prototype.filter() - Even Numbers", setup: "const data = [1, 2, 3, 4, 5, 6]; \nconst evens = data.filter( /* YOUR CODE HERE */ );", evaluation: (input) => { const data = [1, 2, 3, 4, 5, 6]; return eval(`data.filter(${input})`); }, correctResult: [2, 4, 6], tip: "Callback: element => boolean (true to keep)", answerSnippet: "n => n % 2 === 0", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter" },
+            { name: "3. Array.prototype.reduce() - Sum", setup: "const nums = [5, 10, 15]; \nconst sum = nums.reduce( /* YOUR CODE HERE */ );", evaluation: (input) => { const nums = [5, 10, 15]; return eval(`nums.reduce(${input})`); }, correctResult: 30, tip: "Callback: (acc, val) => new_acc", answerSnippet: "(acc, val) => acc + val", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/reduce" },
+            { name: "4. Array.prototype.find() - Find Object by ID", setup: "const users = [{id: 1, name: 'A'}, {id: 2, name: 'B'}]; \nconst user = users.find( /* YOUR CODE HERE */ );", evaluation: (input) => { const users = [{id: 1, name: 'A'}, {id: 2, name: 'B'}]; return eval(`users.find(${input})`); }, correctResult: {id: 2, name: 'B'}, tip: "Callback: element => boolean (first true wins)", answerSnippet: "u => u.id === 2", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/find" },
+            { name: "5. Array.prototype.findIndex() - Index of Score", setup: "const scores = [50, 95, 80, 100]; \nconst firstHigh = scores.findIndex( /* YOUR CODE HERE */ );", evaluation: (input) => { const scores = [50, 95, 80, 100]; return eval(`scores.findIndex(${input})`); }, correctResult: 1, tip: "Find the index of the first score > 90.", answerSnippet: "s => s > 90", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/findIndex" },
+            { name: "6. Array.prototype.some() - Check Adult Existence", setup: "const ages = [12, 16, 20]; \nconst adultExists = ages.some( /* YOUR CODE HERE */ );", evaluation: (input) => { const ages = [12, 16, 20]; return eval(`ages.some(${input})`); }, correctResult: true, tip: "Check if at least one age >= 18.", answerSnippet: "age => age >= 18", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/some" },
+            { name: "7. Array.prototype.every() - Check Positivity", setup: "const temps = [5, 10, 1, 20]; \nconst allPositive = temps.every( /* YOUR CODE HERE */ );", evaluation: (input) => { const temps = [5, 10, 1, 20]; return eval(`temps.every(${input})`); }, correctResult: true, tip: "Check if ALL numbers are > 0.", answerSnippet: "n => n > 0", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/every" },
+            { name: "8. Array.prototype.flat() - Flatten Once", setup: "const nested = [1, [2, 3], [4, [5]]]; \nconst flatArray = nested.flat( /* YOUR CODE HERE */ );", evaluation: (input) => { const nested = [1, [2, 3], [4, [5]]]; return eval(`nested.flat(${input})`); }, correctResult: [1, 2, 3, 4, [5]], tip: "Argument is the depth (1 for one level).", answerSnippet: "1", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/flat" },
+            { name: "9. Array.prototype.join() - String Concatenation", setup: "const words = ['Hello', 'World', '!']; \nconst sentence = words.join( /* YOUR CODE HERE */ );", evaluation: (input) => { const words = ['Hello', 'World', '!']; return eval(`words.join(${input})`); }, correctResult: "Hello-World-!", tip: "Argument is the separator string ('-').", answerSnippet: "'-'", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/join" },
+            { name: "10. Array.prototype.includes() - Check for Element", setup: "const colors = ['red', 'green', 'blue']; \nconst hasBlue = colors.includes( /* YOUR CODE HERE */ );", evaluation: (input) => { const colors = ['red', 'green', 'blue']; return eval(`colors.includes(${input})`); }, correctResult: true, tip: "Argument is the value to search for ('blue').", answerSnippet: "'blue'", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/includes" },
+
+            // --- Array Modification (11-20) ---
+            { name: "11. Array.prototype.concat() - Merge Arrays", setup: "const a = [1, 2]; const b = [3, 4]; \nconst combined = a.concat( /* YOUR CODE HERE */ );", evaluation: (input) => { const a = [1, 2]; const b = [3, 4]; return eval(`a.concat(${input})`); }, correctResult: [1, 2, 3, 4], tip: "Argument is the array to append (b).", answerSnippet: "b", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/concat" },
+            { name: "12. Array.prototype.reverse() - Reverse Order", setup: "const letters = ['a', 'b', 'c']; \nconst reversed = letters.reverse( /* YOUR CODE HERE */ ); // returns mutated array", evaluation: (input) => { const letters = ['a', 'b', 'c']; eval(`letters.reverse(${input})`); return letters; }, correctResult: ['c', 'b', 'a'], tip: "Takes no arguments.", answerSnippet: "", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/reverse" },
+            { name: "13. Array.prototype.slice() - Extract Sub-array", setup: "const months = ['Jan', 'Feb', 'Mar', 'Apr']; \nconst subMonths = months.slice( /* YOUR CODE HERE */ );", evaluation: (input) => { const months = ['Jan', 'Feb', 'Mar', 'Apr']; return eval(`months.slice(${input})`); }, correctResult: ['Feb', 'Mar'], tip: "Start index (1), End index (3, exclusive).", answerSnippet: "1, 3", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/slice" },
+            { name: "14. Array.prototype.splice() - Remove Elements", setup: "const items = ['car', 'bike', 'plane', 'boat']; \nconst removed = items.splice( /* YOUR CODE HERE */ );", evaluation: (input) => { const items = ['car', 'bike', 'plane', 'boat']; return eval(`items.splice(${input})`); }, correctResult: ['bike', 'plane'], tip: "Start index (1), Delete count (2).", answerSnippet: "1, 2", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/splice" },
+            { name: "15. Array.prototype.indexOf() - Find Position", setup: "const ranks = ['Gold', 'Silver', 'Bronze']; \nconst pos = ranks.indexOf( /* YOUR CODE HERE */ );", evaluation: (input) => { const ranks = ['Gold', 'Silver', 'Bronze']; return eval(`ranks.indexOf(${input})`); }, correctResult: 2, tip: "Find index of 'Bronze'.", answerSnippet: "'Bronze'", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/indexOf" },
+            { name: "16. Array.prototype.at() - Last Element", setup: "const list = ['A', 'B', 'C']; \nconst last = list.at( /* YOUR CODE HERE */ );", evaluation: (input) => { const list = ['A', 'B', 'C']; return eval(`list.at(${input})`); }, correctResult: 'C', tip: "Use a negative index to get the last element.", answerSnippet: "-1", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/at" },
+            { name: "17. Array.prototype.fill() - Fill with Zero", setup: "const arr = [1, 2, 3, 4]; \nconst filled = arr.fill( /* YOUR CODE HERE */ );", evaluation: (input) => { const arr = [1, 2, 3, 4]; arr.fill(eval(input)); return arr; }, correctResult: [0, 0, 0, 0], tip: "The argument is the value to fill the array with (0).", answerSnippet: "0", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/fill" },
+            { name: "18. Array.prototype.push() - Add element", setup: "const stack = ['a']; \nstack.push( /* YOUR CODE HERE */ ); \nconst length = stack.length;", evaluation: (input) => { const stack = ['a']; eval(`stack.push(${input})`); return stack; }, correctResult: ['a', 'b'], tip: "Add the string 'b' to the end.", answerSnippet: "'b'", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/push" },
+            { name: "19. Array.prototype.shift() - Remove first", setup: "const queue = [1, 2, 3]; \nconst first = queue.shift( /* YOUR CODE HERE */ ); \n// Expected result is the new array.", evaluation: (input) => { const queue = [1, 2, 3]; eval(`queue.shift(${input})`); return queue; }, correctResult: [2, 3], tip: "Takes no arguments.", answerSnippet: "", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/shift" },
+            { name: "20. Array.prototype.unshift() - Add to front", setup: "const items = ['c']; \nitems.unshift( /* YOUR CODE HERE */ ); \n// Expected result is the new array.", evaluation: (input) => { const items = ['c']; eval(`items.unshift(${input})`); return items; }, correctResult: ['a', 'b', 'c'], tip: "Add two elements, 'a' and 'b', to the start.", answerSnippet: "'a', 'b'", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/unshift" },
+
+            // --- Object/Data Methods (21-30) ---
+            { name: "21. Object.keys() - Extracting Property Names", setup: "const person = { name: 'Alice', age: 30 }; \nconst keys = Object.keys( /* YOUR CODE HERE */ );", evaluation: (input) => { const person = { name: 'Alice', age: 30 }; return eval(`Object.keys(${input})`); }, correctResult: ['name', 'age'], tip: "Argument is the object itself (person).", answerSnippet: "person", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/keys" },
+            { name: "22. Object.values() - Extracting Property Values", setup: "const item = { product: 'Widget', price: 100 }; \nconst values = Object.values( /* YOUR CODE HERE */ );", evaluation: (input) => { const item = { product: 'Widget', price: 100 }; return eval(`Object.values(${input})`); }, correctResult: ['Widget', 100], tip: "Argument is the object itself (item).", answerSnippet: "item", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/values" },
+            { name: "23. Object.entries() - Key-Value Pairs", setup: "const profile = { id: 101, status: 'Active' }; \nconst entries = Object.entries( /* YOUR CODE HERE */ );", evaluation: (input) => { const profile = { id: 101, status: 'Active' }; return eval(`Object.entries(${input})`); }, correctResult: [['id', 101], ['status', 'Active']], tip: "Argument is the object itself (profile).", answerSnippet: "profile", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries" },
+            { name: "24. Object.assign() - Merge Objects", setup: "const obj1 = {a: 1}; const obj2 = {b: 2}; \nconst merged = Object.assign( /* YOUR CODE HERE */ );", evaluation: (input) => { const obj1 = {a: 1}; const obj2 = {b: 2}; return eval(`Object.assign(${input})`); }, correctResult: {a: 1, b: 2}, tip: "Target object, then source objects ({}, obj1, obj2).", answerSnippet: "{}, obj1, obj2", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign" },
+            { name: "25. Object.is() - Strict Value Comparison", setup: "const val1 = 5; const val2 = '5'; \nconst isEqual = Object.is( /* YOUR CODE HERE */ );", evaluation: (input) => { const val1 = 5; const val2 = '5'; return eval(`Object.is(${input})`); }, correctResult: false, tip: "Arguments are the two values to compare (val1, val2).", answerSnippet: "val1, val2", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/is" },
+            { name: "26. Array.from() - Creating from iterable", setup: "const word = 'F U N'; \nconst chars = Array.from( /* YOUR CODE HERE */ );", evaluation: (input) => { const word = 'F U N'; return eval(`Array.from(${input})`); }, correctResult: ['F', ' ', 'U', ' ', 'N'], tip: "Argument is the iterable object (word).", answerSnippet: "word", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/from" },
+            { name: "27. new Set() - Unique Elements", setup: "const items = ['a', 'b', 'a', 'c', 'b']; \nconst unique = [ ...new Set( /* YOUR CODE HERE */ ) ];", evaluation: (input) => { const items = ['a', 'b', 'a', 'c', 'b']; return eval(`[ ...new Set(${input}) ]`); }, correctResult: ['a', 'b', 'c'], tip: "Argument is the array to deduplicate (items).", answerSnippet: "items", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Set" },
+            { name: "28. JSON.stringify() - Convert object to string", setup: "const obj = {id: 1, val: true}; \nconst str = JSON.stringify( /* YOUR CODE HERE */ );", evaluation: (input) => { const obj = {id: 1, val: true}; return eval(`JSON.stringify(${input})`); }, correctResult: '{"id":1,"val":true}', tip: "Argument is the object to serialize (obj).", answerSnippet: "obj", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify" },
+            { name: "29. JSON.parse() - Convert string to object", setup: "const str = '{\"status\":\"ok\"}'; \nconst obj = JSON.parse( /* YOUR CODE HERE */ );", evaluation: (input) => { const str = '{"status":"ok"}'; return eval(`JSON.parse(${input})`); }, correctResult: {status: 'ok'}, tip: "Argument is the JSON string (str).", answerSnippet: "str", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/parse" },
+            { name: "30. Array.isArray() - Type Check", setup: "const data1 = [1]; const data2 = {}; \nconst isArray = Array.isArray( /* YOUR CODE HERE */ );", evaluation: (input) => { const data1 = [1]; const data2 = {}; return eval(`Array.isArray(${input})`); }, correctResult: true, tip: "Check if data1 is an array.", answerSnippet: "data1", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/isArray" },
+
+            // --- String Methods (31-40) ---
+            { name: "31. String.prototype.trim() - Remove Whitespace", setup: "const padded = '   hello world   '; \nconst trimmed = padded.trim( /* YOUR CODE HERE */ );", evaluation: (input) => { const padded = '   hello world   '; return eval(`padded.trim(${input})`); }, correctResult: "hello world", tip: "Takes no arguments.", answerSnippet: "", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/trim" },
+            { name: "32. String.prototype.split() - Convert to Array", setup: "const csv = 'red,green,blue'; \nconst colorsArray = csv.split( /* YOUR CODE HERE */ );", evaluation: (input) => { const csv = 'red,green,blue'; return eval(`csv.split(${input})`); }, correctResult: ['red', 'green', 'blue'], tip: "Separator argument (',').", answerSnippet: "','", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/split" },
+            { name: "33. String.prototype.toUpperCase() - Convert Case", setup: "const text = 'javascript'; \nconst upper = text.toUpperCase( /* YOUR CODE HERE */ );", evaluation: (input) => { const text = 'javascript'; return eval(`text.toUpperCase(${input})`); }, correctResult: "JAVASCRIPT", tip: "Takes no arguments.", answerSnippet: "", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toUpperCase" },
+            { name: "34. String.prototype.toLowerCase() - Convert Case", setup: "const text = 'JAVASCRIPT'; \nconst lower = text.toLowerCase( /* YOUR CODE HERE */ );", evaluation: (input) => { const text = 'JAVASCRIPT'; return eval(`text.toLowerCase(${input})`); }, correctResult: "javascript", tip: "Takes no arguments.", answerSnippet: "", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toLowerCase" },
+            { name: "35. String.prototype.startsWith() - Prefix Check", setup: "const file = 'image.png'; \nconst isImage = file.startsWith( /* YOUR CODE HERE */ );", evaluation: (input) => { const file = 'image.png'; return eval(`file.startsWith(${input})`); }, correctResult: true, tip: "Search string ('image').", answerSnippet: "'image'", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith" },
+            { name: "36. String.prototype.endsWith() - Suffix Check", setup: "const file = 'document.pdf'; \nconst isPDF = file.endsWith( /* YOUR CODE HERE */ );", evaluation: (input) => { const file = 'document.pdf'; return eval(`file.endsWith(${input})`); }, correctResult: true, tip: "Search string ('.pdf').", answerSnippet: "'.pdf'", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/endsWith" },
+            { name: "37. String.prototype.includes() - Substring Check", setup: "const url = 'https://example.com/products'; \nconst hasProduct = url.includes( /* YOUR CODE HERE */ );", evaluation: (input) => { const url = 'https://example.com/products'; return eval(`url.includes(${input})`); }, correctResult: true, tip: "Search string ('product').", answerSnippet: "'product'", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/includes" },
+            { name: "38. String.prototype.substring() - Get middle part", setup: "const text = 'JavaScript'; \nconst sub = text.substring( /* YOUR CODE HERE */ );", evaluation: (input) => { const text = 'JavaScript'; return eval(`text.substring(${input})`); }, correctResult: 'Script', tip: "Start index (4) to end.", answerSnippet: "4", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/substring" },
+            { name: "39. String.prototype.slice() - Negative index", setup: "const text = 'JavaScript'; \nconst lastFour = text.slice( /* YOUR CODE HERE */ );", evaluation: (input) => { const text = 'JavaScript'; return eval(`text.slice(${input})`); }, correctResult: 'ript', tip: "Start index (-4).", answerSnippet: "-4", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/slice" },
+            { name: "40. String.prototype.repeat() - Repeat 3 times", setup: "const star = '*'; \nconst pattern = star.repeat( /* YOUR CODE HERE */ );", evaluation: (input) => { const star = '*'; return eval(`star.repeat(${input})`); }, correctResult: "***", tip: "Count argument (3).", answerSnippet: "3", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/repeat" },
+
+            // --- Math/Number Methods (41-50) ---
+            { name: "41. Math.floor() - Rounding Down", setup: "const num = 5.9; \nconst integer = Math.floor( /* YOUR CODE HERE */ );", evaluation: (input) => { const num = 5.9; return eval(`Math.floor(${input})`); }, correctResult: 5, tip: "Argument is the number (num).", answerSnippet: "num", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/floor" },
+            { name: "42. Math.ceil() - Rounding Up", setup: "const num = 5.1; \nconst integer = Math.ceil( /* YOUR CODE HERE */ );", evaluation: (input) => { const num = 5.1; return eval(`Math.ceil(${input})`); }, correctResult: 6, tip: "Argument is the number (num).", answerSnippet: "num", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/ceil" },
+            { name: "43. Math.round() - Round to Nearest", setup: "const num = 5.5; \nconst integer = Math.round( /* YOUR CODE HERE */ );", evaluation: (input) => { const num = 5.5; return eval(`Math.round(${input})`); }, correctResult: 6, tip: "Argument is the number (num).", answerSnippet: "num", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/round" },
+            { name: "44. Math.pow() - Cube of a number", setup: "const base = 4; \nconst result = Math.pow( /* YOUR CODE HERE */ );", evaluation: (input) => { const base = 4; return eval(`Math.pow(${input})`); }, correctResult: 64, tip: "Arguments are (base, exponent).", answerSnippet: "base, 3", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/pow" },
+            { name: "45. Math.sqrt() - Square root", setup: "const num = 81; \nconst root = Math.sqrt( /* YOUR CODE HERE */ );", evaluation: (input) => { const num = 81; return eval(`Math.sqrt(${input})`); }, correctResult: 9, tip: "Argument is the number (num).", answerSnippet: "num", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/sqrt" },
+            { name: "46. Math.min() - Find minimum value", setup: "const result = Math.min( /* YOUR CODE HERE */ );", evaluation: (input) => { return eval(`Math.min(${input})`); }, correctResult: 1, tip: "Arguments are comma-separated numbers (1, 5, 2).", answerSnippet: "1, 5, 2", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/min" },
+            { name: "47. Math.max() - Find maximum value", setup: "const result = Math.max( /* YOUR CODE HERE */ );", evaluation: (input) => { return eval(`Math.max(${input})`); }, correctResult: 10, tip: "Arguments are comma-separated numbers (5, 1, 10).", answerSnippet: "5, 1, 10", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/max" },
+            { name: "48. Number.parseInt() - String to integer", setup: "const str = '123.45'; \nconst num = parseInt( /* YOUR CODE HERE */ );", evaluation: (input) => { const str = '123.45'; return eval(`parseInt(${input})`); }, correctResult: 123, tip: "Argument is the string (str).", answerSnippet: "str", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/parseInt" },
+            { name: "49. Number.parseFloat() - String to float", setup: "const str = '123.45'; \nconst num = parseFloat( /* YOUR CODE HERE */ );", evaluation: (input) => { const str = '123.45'; return eval(`parseFloat(${input})`); }, correctResult: 123.45, tip: "Argument is the string (str).", answerSnippet: "str", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/parseFloat" },
+            { name: "50. Number.toFixed() - Format to 2 decimal places", setup: "const price = 9.999; \nconst fixed = price.toFixed( /* YOUR CODE HERE */ );", evaluation: (input) => { const price = 9.999; return eval(`price.toFixed(${input})`); }, correctResult: "10.00", tip: "Number of decimal places (2). Note: result is a string.", answerSnippet: "2", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/toFixed" },
+            
+            // --- Advanced Array Methods (51-60) ---
+            { name: "51. Array.prototype.sort() - Ascending Numbers", setup: "const numbers = [20, 1, 10]; \nconst sorted = numbers.sort( /* YOUR CODE HERE */ );", evaluation: (input) => { const numbers = [20, 1, 10]; return eval(`numbers.sort(${input})`); }, correctResult: [1, 10, 20], tip: "The standard number sorting callback is (a, b) => a - b.", answerSnippet: "(a, b) => a - b", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort" },
+            { name: "52. Array.prototype.sort() - Descending Strings", setup: "const words = ['c', 'a', 'b']; \nconst sorted = words.sort( /* YOUR CODE HERE */ );", evaluation: (input) => { const words = ['c', 'a', 'b']; return eval(`words.sort(${input})`); }, correctResult: ['c', 'b', 'a'], tip: "To sort strings descending: (a, b) => b.localeCompare(a).", answerSnippet: "(a, b) => b.localeCompare(a)", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort" },
+            { name: "53. Array.prototype.reduce() - Count Occurrences", setup: "const items = ['a', 'b', 'a', 'c']; \nconst counts = items.reduce( /* YOUR CODE HERE */, {} );", evaluation: (input) => { const items = ['a', 'b', 'a', 'c']; return eval(`items.reduce(${input}, {})`); }, correctResult: {a: 2, b: 1, c: 1}, tip: "Initialize with {} and update accumulator: acc[val] = (acc[val] || 0) + 1; return acc", answerSnippet: "(acc, val) => { acc[val] = (acc[val] || 0) + 1; return acc; }", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/reduce" },
+            { name: "54. Array.prototype.flatMap() - Map and Flatten", setup: "const words = ['Hello World', 'JS']; \nconst letters = words.flatMap( /* YOUR CODE HERE */ );", evaluation: (input) => { const words = ['Hello World', 'JS']; return eval(`words.flatMap(${input})`); }, correctResult: ['H', 'e', 'l', 'l', 'o', ' ', 'W', 'o', 'r', 'l', 'd', 'J', 'S'], tip: "Map each string to an array of its characters using split(' ').", answerSnippet: "w => w.split('')", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/flatMap" },
+            { name: "55. Array.prototype.keys() - Get keys iterator", setup: "const arr = ['a', 'b']; \nconst keys = Array.from(arr.keys( /* YOUR CODE HERE */ ));", evaluation: (input) => { const arr = ['a', 'b']; return Array.from(arr.keys(eval(input))); }, correctResult: [0, 1], tip: "Takes no arguments.", answerSnippet: "", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/keys" },
+            { name: "56. Array.prototype.values() - Get values iterator", setup: "const arr = ['x', 'y']; \nconst values = Array.from(arr.values( /* YOUR CODE HERE */ ));", evaluation: (input) => { const arr = ['x', 'y']; return Array.from(arr.values(eval(input))); }, correctResult: ['x', 'y'], tip: "Takes no arguments.", answerSnippet: "", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/values" },
+            { name: "57. Array.prototype.entries() - Get entries iterator", setup: "const arr = ['p', 'q']; \nconst entries = Array.from(arr.entries( /* YOUR CODE HERE */ ));", evaluation: (input) => { const arr = ['p', 'q']; return Array.from(arr.entries(eval(input))); }, correctResult: [[0, 'p'], [1, 'q']], tip: "Takes no arguments.", answerSnippet: "", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/entries" },
+            { name: "58. Array.prototype.findLast() - Find last object", setup: "const items = [{id: 1}, {id: 2}, {id: 1}]; \nconst last = items.findLast( /* YOUR CODE HERE */ );", evaluation: (input) => { const items = [{id: 1}, {id: 2}, {id: 1}]; return eval(`items.findLast(${input})`); }, correctResult: {id: 1}, tip: "Finds the object where id === 1, starting from the end.", answerSnippet: "i => i.id === 1", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/findLast" },
+            { name: "59. Array.prototype.reduceRight() - Sum from right", setup: "const nums = [1, 2, 3]; \nconst sum = nums.reduceRight( /* YOUR CODE HERE */ );", evaluation: (input) => { const nums = [1, 2, 3]; return eval(`nums.reduceRight(${input})`); }, correctResult: 6, tip: "Same reduce callback: (acc, val) => acc + val", answerSnippet: "(acc, val) => acc + val", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/reduceRight" },
+            { name: "60. Array.prototype.with() - Non-mutating update", setup: "const items = ['A', 'B', 'C']; \nconst newItems = items.with( /* YOUR CODE HERE */ );", evaluation: (input) => { const items = ['A', 'B', 'C']; return eval(`items.with(${input})`); }, correctResult: ['A', 'D', 'C'], tip: "Index (1), New value ('D').", answerSnippet: "1, 'D'", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/with" },
+            
+            // --- String/RegExp/Utility (61-70) ---
+            { name: "61. String.prototype.replace() - Simple replacement", setup: "const str = 'I like cats.'; \nconst newStr = str.replace( /* YOUR CODE HERE */ );", evaluation: (input) => { const str = 'I like cats.'; return eval(`str.replace(${input})`); }, correctResult: "I like dogs.", tip: "Arguments: ('cats', 'dogs'). Only replaces the first instance.", answerSnippet: "'cats', 'dogs'", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/replace" },
+            { name: "62. String.prototype.replaceAll() - Global replacement", setup: "const str = 'red, green, red, blue'; \nconst newStr = str.replaceAll( /* YOUR CODE HERE */ );", evaluation: (input) => { const str = 'red, green, red, blue'; return eval(`str.replaceAll(${input})`); }, correctResult: "blue, green, blue, blue", tip: "Arguments: ('red', 'blue').", answerSnippet: "'red', 'blue'", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/replaceAll" },
+            { name: "63. String.prototype.match() - Extract digits", setup: "const str = 'A1B2C3'; \nconst matches = str.match( /* YOUR CODE HERE */ );", evaluation: (input) => { const str = 'A1B2C3'; return eval(`str.match(${input})`); }, correctResult: ['1', '2', '3'], tip: "Use the global RegExp /\\d/g.", answerSnippet: "/\\d/g", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/match" },
+            { name: "64. String.prototype.search() - Find pattern index", setup: "const str = 'Product_ID_123'; \nconst index = str.search( /* YOUR CODE HERE */ );", evaluation: (input) => { const str = 'Product_ID_123'; return eval(`str.search(${input})`); }, correctResult: 13, tip: "Search for a digit (RegExp /\\d/).", answerSnippet: "/\\d/", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/search" },
+            { name: "65. String.prototype.padStart() - Pad with zeros", setup: "const code = '123'; \nconst padded = code.padStart( /* YOUR CODE HERE */ );", evaluation: (input) => { const code = '123'; return eval(`code.padStart(${input})`); }, correctResult: "000123", tip: "Target length (6), padding character ('0').", answerSnippet: "6, '0'", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/padStart" },
+            { name: "66. String.prototype.padEnd() - Pad with spaces", setup: "const name = 'Alice'; \nconst padded = name.padEnd( /* YOUR CODE HERE */ );", evaluation: (input) => { const name = 'Alice'; return eval(`name.padEnd(${input})`); }, correctResult: "Alice     ", tip: "Target length (10). Pad character defaults to space.", answerSnippet: "10", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/padEnd" },
+            { name: "67. RegExp.prototype.test() - Simple pattern match", setup: "const pattern = /\\d/; \nconst hasDigit = pattern.test( /* YOUR CODE HERE */ );", evaluation: (input) => { const pattern = /\d/; return eval(`pattern.test(${input})`); }, correctResult: true, tip: "Test if the string 'abc1' contains a digit.", answerSnippet: "'abc1'", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp/test" },
+            { name: "68. Array.prototype.map() + Number() - Convert strings to numbers", setup: "const strNums = ['1', '2', '3']; \nconst nums = strNums.map( /* YOUR CODE HERE */ );", evaluation: (input) => { const strNums = ['1', '2', '3']; return eval(`strNums.map(${input})`); }, correctResult: [1, 2, 3], tip: "Use the Number constructor as the callback.", answerSnippet: "Number", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map" },
+            { name: "69. Object.freeze() - Prevent modification", setup: "const user = { name: 'J' }; \nObject.freeze( /* YOUR CODE HERE */ ); \nuser.name = 'K'; \nconst finalName = user.name;", evaluation: (input) => { const user = { name: 'J' }; eval(`Object.freeze(${input})`); user.name = 'K'; return user.name; }, correctResult: 'J', tip: "Argument is the object to freeze (user).", answerSnippet: "user", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/freeze" },
+            { name: "70. Object.seal() - Prevent adding properties", setup: "const obj = { a: 1 }; \nObject.seal( /* YOUR CODE HERE */ ); \nobj.b = 2; \nconst keys = Object.keys(obj);", evaluation: (input) => { const obj = { a: 1 }; eval(`Object.seal(${input})`); obj.b = 2; return Object.keys(obj); }, correctResult: ['a'], tip: "Argument is the object to seal (obj).", answerSnippet: "obj", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/seal" },
+
+            // --- Math/Advanced Checks (71-80) ---
+            { name: "71. Math.random() - Generate number in range (0 to 1)", setup: "const r = Math.random( /* YOUR CODE HERE */ ); \nconst inRange = r >= 0 && r < 1;", evaluation: (input) => { const r = eval(`Math.random(${input})`); return r >= 0 && r < 1; }, correctResult: true, tip: "Takes no arguments.", answerSnippet: "", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random" },
+            { name: "72. Math.trunc() - Remove fraction part", setup: "const num = 12.99; \nconst result = Math.trunc( /* YOUR CODE HERE */ );", evaluation: (input) => { const num = 12.99; return eval(`Math.trunc(${input})`); }, correctResult: 12, tip: "Argument is the number (num).", answerSnippet: "num", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/trunc" },
+            { name: "73. Math.sign() - Get sign of a number", setup: "const num = -50; \nconst sign = Math.sign( /* YOUR CODE HERE */ );", evaluation: (input) => { const num = -50; return eval(`Math.sign(${input})`); }, correctResult: -1, tip: "Argument is the number (num).", answerSnippet: "num", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/sign" },
+            { name: "74. Number.isNaN() - Check for NaN", setup: "const val = NaN; \nconst isNotANumber = Number.isNaN( /* YOUR CODE HERE */ );", evaluation: (input) => { const val = NaN; return eval(`Number.isNaN(${input})`); }, correctResult: true, tip: "Argument is the value (val).", answerSnippet: "val", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isNaN" },
+            { name: "75. isFinite() - Check for infinity", setup: "const val = 1/0; \nconst isFiniteNum = isFinite( /* YOUR CODE HERE */ );", evaluation: (input) => { const val = 1/0; return eval(`isFinite(${input})`); }, correctResult: false, tip: "Argument is the value (val).", answerSnippet: "val", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/isFinite" },
+            { name: "76. Number.isSafeInteger() - Check safe range", setup: "const largeNum = 2**53; \nconst isSafe = Number.isSafeInteger( /* YOUR CODE HERE */ );", evaluation: (input) => { const largeNum = 2**53; return eval(`Number.isSafeInteger(${input})`); }, correctResult: false, tip: "Argument is the large number (largeNum).", answerSnippet: "largeNum", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/isSafeInteger" },
+            { name: "77. Date.now() - Get current timestamp", setup: "const start = Date.now(); \nconst timestamp = Date.now( /* YOUR CODE HERE */ ); \nconst result = timestamp >= start;", evaluation: (input) => { const start = Date.now(); const timestamp = eval(`Date.now(${input})`); return timestamp >= start; }, correctResult: true, tip: "Takes no arguments.", answerSnippet: "", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now" },
+            { name: "78. Date object - Get year", setup: "const date = new Date('2025-01-01'); \nconst year = date.getFullYear( /* YOUR CODE HERE */ );", evaluation: (input) => { const date = new Date('2025-01-01'); return eval(`date.getFullYear(${input})`); }, correctResult: 2025, tip: "The getFullYear method takes no arguments.", answerSnippet: "", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/getFullYear" },
+            { name: "79. Object.getPrototypeOf() - Get prototype", setup: "const proto = { method: () => 'hi' }; \nconst obj = Object.create(proto); \nconst prototype = Object.getPrototypeOf( /* YOUR CODE HERE */ );", evaluation: (input) => { const proto = { method: () => 'hi' }; const obj = Object.create(proto); return eval(`Object.getPrototypeOf(${input})`); }, correctResult: { method: () => 'hi' }, tip: "Argument is the object (obj).", answerSnippet: "obj", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getPrototypeOf" },
+            { name: "80. Object.create() - Prototype creation", setup: "const proto = { type: 'animal' }; \nconst dog = Object.create( /* YOUR CODE HERE */ ); \nconst type = dog.type;", evaluation: (input) => { const proto = { type: 'animal' }; const dog = eval(`Object.create(${input})`); return dog.type; }, correctResult: 'animal', tip: "Argument is the prototype object (proto).", answerSnippet: "proto", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/create" },
+
+            // --- Combining Methods (81-90) ---
+            { name: "81. Filter + Map Chain - Double even numbers", setup: "const data = [1, 2, 3, 4]; \nconst result = data.filter(n => n % 2 === 0).map( /* YOUR CODE HERE */ );", evaluation: (input) => { const data = [1, 2, 3, 4]; return eval(`data.filter(n => n % 2 === 0).map(${input})`); }, correctResult: [4, 8], tip: "Map callback to double the number: n => n * 2.", answerSnippet: "n => n * 2", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter" },
+            { name: "82. Reduce - Group items by category", setup: "const list = [{c:'f', v:1}, {c:'f', v:2}, {c:'b', v:3}]; \nconst grouped = list.reduce( /* YOUR CODE HERE */, {} );", evaluation: (input) => { const list = [{c:'f', v:1}, {c:'f', v:2}, {c:'b', v:3}]; return eval(`list.reduce(${input}, {})`); }, correctResult: {f: [1, 2], b: [3]}, tip: "Use object keys for grouping: acc[item.c] = [...(acc[item.c] || []), item.v]; return acc;", answerSnippet: "(acc, item) => { acc[item.c] = [...(acc[item.c] || []), item.v]; return acc; }", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/reduce" },
+            { name: "83. String.prototype.charAt() - Get character at index", setup: "const text = 'Code'; \nconst char = text.charAt( /* YOUR CODE HERE */ );", evaluation: (input) => { const text = 'Code'; return eval(`text.charAt(${input})`); }, correctResult: 'd', tip: "Index argument (2).", answerSnippet: "2", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/charAt" },
+            { name: "84. String.prototype.codePointAt() - Unicode code point", setup: "const text = 'A'; \nconst code = text.codePointAt( /* YOUR CODE HERE */ );", evaluation: (input) => { const text = 'A'; return eval(`text.codePointAt(${input})`); }, correctResult: 65, tip: "Index argument (0).", answerSnippet: "0", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/codePointAt" },
+            { name: "85. Math.log() - Natural logarithm", setup: "const num = Math.E; \nconst result = Math.log( /* YOUR CODE HERE */ );", evaluation: (input) => { const num = Math.E; return Math.round(eval(`Math.log(${input})`)); }, correctResult: 1, tip: "Argument is the number (num). Result should be 1.", answerSnippet: "num", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/log" },
+            { name: "86. Math.exp() - Euler's number to the power", setup: "const power = 2; \nconst result = Math.exp( /* YOUR CODE HERE */ ); \n// Expected result is approx 7.389 (rounded)", evaluation: (input) => { const power = 2; return Math.round(eval(`Math.exp(${input})`) * 1000) / 1000; }, correctResult: 7.389, tip: "Argument is the exponent (power).", answerSnippet: "power", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/exp" },
+            { name: "87. Number.prototype.toString() - Convert to base 2", setup: "const num = 10; \nconst binary = num.toString( /* YOUR CODE HERE */ );", evaluation: (input) => { const num = 10; return eval(`num.toString(${input})`); }, correctResult: "1010", tip: "Argument is the radix/base (2).", answerSnippet: "2", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/toString" },
+            { name: "88. Object.getOwnPropertyNames() - Get non-symbol properties", setup: "const obj = { a: 1, b: 2 }; \nconst names = Object.getOwnPropertyNames( /* YOUR CODE HERE */ );", evaluation: (input) => { const obj = { a: 1, b: 2 }; return eval(`Object.getOwnPropertyNames(${input})`); }, correctResult: ['a', 'b'], tip: "Argument is the object (obj).", answerSnippet: "obj", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getOwnPropertyNames" },
+            { name: "89. Object.hasOwn() - Safe property check", setup: "const user = { name: 'A' }; \nconst hasName = Object.hasOwn( /* YOUR CODE HERE */ );", evaluation: (input) => { const user = { name: 'A' }; return eval(`Object.hasOwn(${input})`); }, correctResult: true, tip: "Arguments: (object, property_key).", answerSnippet: "user, 'name'", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/hasOwn" },
+            { name: "90. String.prototype.normalize() - Unicode normalization", setup: "const str1 = '\\u00e9'; const str2 = 'e\\u0301'; \nconst normalized = str2.normalize( /* YOUR CODE HERE */ ); \nconst result = normalized === str1;", evaluation: (input) => { const str1 = '\u00e9'; const str2 = 'e\u0301'; const normalized = eval(`str2.normalize(${input})`); return normalized === str1; }, correctResult: true, tip: "Argument is the form ('NFC') for canonical composition.", answerSnippet: "'NFC'", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/normalize" },
+
+            // --- Last 10 Challenges (91-100) ---
+            { name: "91. Array.prototype.filter() + Index", setup: "const nums = ['a', 'b', 'c', 'd']; \nconst oddIndex = nums.filter( /* YOUR CODE HERE */ );", evaluation: (input) => { const nums = ['a', 'b', 'c', 'd']; return eval(`nums.filter(${input})`); }, correctResult: ['b', 'd'], tip: "Filter callback takes (val, index) and keeps elements at odd indices (index % 2 !== 0).", answerSnippet: "(val, idx) => idx % 2 !== 0", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter" },
+            { name: "92. Array.prototype.map() + Index", setup: "const names = ['A', 'B', 'C']; \nconst indexed = names.map( /* YOUR CODE HERE */ );", evaluation: (input) => { const names = ['A', 'B', 'C']; return eval(`names.map(${input})`); }, correctResult: ["0: A", "1: B", "2: C"], tip: "Map callback takes (val, index) and returns `${index}: ${val}`.", answerSnippet: "(val, idx) => `${idx}: ${val}`", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map" },
+            { name: "93. Array.prototype.reduce() - Concatenate strings", setup: "const parts = ['JS', 'is', 'fun']; \nconst sentence = parts.reduce( /* YOUR CODE HERE */, '' );", evaluation: (input) => { const parts = ['JS', 'is', 'fun']; return eval(`parts.reduce(${input}, '')`); }, correctResult: "JS is fun", tip: "Accumulator is a string: (acc, val) => acc + (acc ? ' ' : '') + val.", answerSnippet: "(acc, val) => acc + (acc ? ' ' : '') + val", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/reduce" },
+            { name: "94. Math.hypot() - Hypotenuse", setup: "const a = 3; const b = 4; \nconst c = Math.hypot( /* YOUR CODE HERE */ );", evaluation: (input) => { const a = 3; const b = 4; return eval(`Math.hypot(${input})`); }, correctResult: 5, tip: "Arguments are the side lengths (a, b).", answerSnippet: "a, b", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/hypot" },
+            { name: "95. String.prototype.indexOf() - Find second occurrence", setup: "const str = 'ababa'; \nconst index = str.indexOf( /* YOUR CODE HERE */ );", evaluation: (input) => { const str = 'ababa'; return eval(`str.indexOf(${input})`); }, correctResult: 2, tip: "Search string ('a'), starting index (1).", answerSnippet: "'a', 1", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/indexOf" },
+            { name: "96. String.prototype.lastIndexOf() - Find last occurrence", setup: "const str = 'ababa'; \nconst index = str.lastIndexOf( /* YOUR CODE HERE */ );", evaluation: (input) => { const str = 'ababa'; return eval(`str.lastIndexOf(${input})`); }, correctResult: 4, tip: "Search string ('a').", answerSnippet: "'a'", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/lastIndexOf" },
+            { name: "97. Array.prototype.pop() - Get last element", setup: "const stack = ['x', 'y', 'z']; \nconst last = stack.pop( /* YOUR CODE HERE */ ); \n// Expected result is the popped element.", evaluation: (input) => { const stack = ['x', 'y', 'z']; return eval(`stack.pop(${input})`); }, correctResult: 'z', tip: "Takes no arguments.", answerSnippet: "", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/pop" },
+            { name: "98. Array.prototype.slice() - Clone Array", setup: "const original = [1, 2]; \nconst clone = original.slice( /* YOUR CODE HERE */ );", evaluation: (input) => { const original = [1, 2]; return eval(`original.slice(${input})`); }, correctResult: [1, 2], tip: "Start index (0), or no arguments.", answerSnippet: "0", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/slice" },
+            { name: "99. Object.getOwnPropertyDescriptors() - Get all descriptors", setup: "const obj = { prop: 1 }; \nconst descriptors = Object.getOwnPropertyDescriptors( /* YOUR CODE HERE */ ); \nconst value = descriptors.prop.value;", evaluation: (input) => { const obj = { prop: 1 }; const descriptors = eval(`Object.getOwnPropertyDescriptors(${input})`); return descriptors.prop.value; }, correctResult: 1, tip: "Argument is the object (obj).", answerSnippet: "obj", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/getOwnPropertyDescriptors" },
+            { name: "100. Array.prototype.sort() - Case Insensitive Strings", setup: "const words = ['Apple', 'banana', 'Cherry']; \nconst sorted = words.sort( /* YOUR CODE HERE */ );", evaluation: (input) => { const words = ['Apple', 'banana', 'Cherry']; return eval(`words.sort(${input})`); }, correctResult: ['Apple', 'banana', 'Cherry'], tip: "Use localeCompare(). (a, b) => a.localeCompare(b, undefined, {sensitivity: 'base'}).", answerSnippet: "(a, b) => a.localeCompare(b, undefined, {sensitivity: 'base'})", resourceLink: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort" }
+        ];
+
+       let currentChallengeIndex = 0;
+    let successfulChallenges = 0;
+    // Track specific solutions per index
+    let userSolutions = JSON.parse(localStorage.getItem('userSolutions') || '{}');
+    
+    const BADGE_INTERVAL = 10;
+    const MOTIVATION_MESSAGES = ["You are a JavaScript Jedi!", "Level Up!", "Master Tier!", "Unstoppable!", "Syntax Superstar!", "Function Fluent!", "Code Conqueror!", "Elite Coder!", "Magic Touch!", "Final Ascent!"];
+
+    // DOM Elements
+    const challengeTitle = document.getElementById('challenge-title');
+    const challengeTip = document.getElementById('challenge-tip');
+    const challengeSetup = document.getElementById('challenge-setup');
+    const userInput = document.getElementById('user-input');
+    const feedbackArea = document.getElementById('feedback-area');
+    const feedbackHeader = document.getElementById('feedback-header');
+    const feedbackMessage = document.getElementById('feedback-message');
+    const resultDisplay = document.getElementById('result-display');
+    const nextBtn = document.getElementById('next-btn');
+    const prevBtn = document.getElementById('prev-btn');
+    const checkBtn = document.getElementById('check-btn');
+    const progressText = document.getElementById('progress-text');
+    const badgeCount = document.getElementById('badge-count');
+    const badgesEarned = document.getElementById('badges-earned');
+    const badgeModal = document.getElementById('badge-modal');
+    const modalMessage = document.getElementById('modal-message');
+
+    function serializeResult(result) {
+        try {
+            if (typeof result === 'function') return result.toString();
+            return JSON.stringify(result, (k, v) => v === undefined ? 'undefined' : v, 2);
+        } catch (e) { return String(result); }
+    }
+
+   function updateBadgeUI() {
+    const solvedCount = Object.keys(userSolutions).length;
+    const earnedBadges = Math.floor(solvedCount / BADGE_INTERVAL);
+    badgeCount.textContent = `Badges: ${earnedBadges}`;
+    
+    // Tiny shiny medals in the top bar
+    badgesEarned.innerHTML = Array(earnedBadges).fill(`
+        <svg class="h-6 w-6" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="40" fill="#f59e0b" stroke="#92400e" stroke-width="4" />
+            <text x="50" y="65" font-size="45" text-anchor="middle" fill="#92400e">★</text>
+        </svg>`).join('');
+}
+
+// Theme Logic
+function toggleDarkMode() {
+    const body = document.body;
+    const isCurrentlyDark = body.classList.contains('dark');
+    
+    if (isCurrentlyDark) {
+        body.classList.remove('dark');
+        localStorage.setItem('jsGameTheme', 'light');
+    } else {
+        body.classList.add('dark');
+        localStorage.setItem('jsGameTheme', 'dark');
+    }
+}
+
+// Ensure theme loads immediately on page load
+function loadSavedTheme() {
+    const savedTheme = localStorage.getItem('jsGameTheme');
+    if (savedTheme === 'dark') {
+        document.body.classList.add('dark');
+    } else {
+        document.body.classList.remove('dark');
+    }
+}
+
+// Update your window.onload to include theme loading
+const originalOnload = window.onload;
+window.onload = function() {
+    loadSavedTheme();
+    if (originalOnload) originalOnload();
+};
+
+
+    function loadChallenge() {
+        const savedIndex = localStorage.getItem('jsGameChallengeIndex');
+        currentChallengeIndex = savedIndex ? parseInt(savedIndex) : 0;
+        successfulChallenges = parseInt(localStorage.getItem('successfulChallenges') || '0');
+        userSolutions = JSON.parse(localStorage.getItem('userSolutions') || '{}');
+
+        const challenge = CHALLENGES[currentChallengeIndex];
+        challengeTitle.textContent = `${challenge.name} (${currentChallengeIndex + 1}/${CHALLENGES.length})`;
+        challengeSetup.textContent = challenge.setup;
+        
+        // Setup Tip
+        const correctResultString = serializeResult(challenge.correctResult);
+        challengeTip.innerHTML = `Goal: The result should be ${correctResultString}.<br>
+            <a href="${challenge.resourceLink}" target="_blank" class="text-blue-500 hover:text-blue-700 font-bold underline">Learn more on MDN</a>`;
+
+        // Load saved solution if it exists
+        const savedAnswer = userSolutions[currentChallengeIndex];
+        userInput.value = savedAnswer || '';
+        
+        // Reset UI
+        feedbackArea.classList.add('hidden');
+        prevBtn.disabled = currentChallengeIndex === 0;
+
+        // If already solved, show solved state
+        if (savedAnswer) {
+            showSolvedState(savedAnswer, false);
+        } else {
+            nextBtn.disabled = true;
+        }
+        
+        updateProgress();
+        updateBadgeUI();
+    }
+
+   function showSolvedState(input, isNewSolve) {
+    const challenge = CHALLENGES[currentChallengeIndex];
+    const result = challenge.evaluation(input);
+    
+    feedbackArea.classList.remove('hidden', 'incorrect');
+    feedbackArea.classList.add('correct');
+    feedbackHeader.textContent = "✅ SOLVED";
+    feedbackMessage.innerHTML = isNewSolve ? "Correct! You've unlocked the next challenge." : "You've already solved this. You can try other code or move on.";
+    resultDisplay.textContent = `Result: ${serializeResult(result)}`;
+    
+    nextBtn.disabled = false;
+
+    if (isNewSolve) {
+        // Save the solution
+        userSolutions[currentChallengeIndex] = input;
+        localStorage.setItem('userSolutions', JSON.stringify(userSolutions));
+        
+        // Recalculate total progress and check for badges
+        const solvedCount = Object.keys(userSolutions).length;
+        localStorage.setItem('successfulChallenges', solvedCount); 
+        
+        checkAndShowBadge(solvedCount); 
+        updateProgress();
+    }
+}
+
+   function checkAnswer() {
+    const input = userInput.value.trim();
+    const challenge = CHALLENGES[currentChallengeIndex];
+    if (!input && challenge.answerSnippet !== "") return;
+
+    // Reset styles immediately to prevent "Solved" color staying on Error
+    feedbackArea.classList.add('hidden');
+    feedbackArea.classList.remove('correct', 'incorrect');
+
+    try {
+        const resultString = serializeResult(challenge.evaluation(input));
+        const correctString = serializeResult(challenge.correctResult);
+
+        if (resultString === correctString) {
+            showSolvedState(input, !userSolutions[currentChallengeIndex]);
+        } else {
+            feedbackArea.classList.remove('hidden');
+            feedbackArea.classList.add('incorrect');
+            feedbackHeader.textContent = "❌ Incorrect";
+            feedbackMessage.innerHTML = `<strong>Tip:</strong> ${challenge.tip}`;
+            resultDisplay.textContent = `Your Result: ${resultString}`;
+            nextBtn.disabled = !userSolutions[currentChallengeIndex];
+        }
+    } catch (e) {
+        // This handles errors like "95 is not a function"
+        feedbackArea.classList.remove('hidden');
+        feedbackArea.classList.add('incorrect'); 
+        feedbackHeader.textContent = "⚠️ Code Error";
+        feedbackMessage.innerHTML = `Your code caused an error. <strong>Hint:</strong> This method requires a callback function, e.g., <code>n => n > 10</code>.`;
+        resultDisplay.textContent = `Error: ${e.message}`;
+        nextBtn.disabled = !userSolutions[currentChallengeIndex];
+    }
+}
+
+    function nextChallenge() {
+        currentChallengeIndex = (currentChallengeIndex + 1) % CHALLENGES.length;
+        localStorage.setItem('jsGameChallengeIndex', currentChallengeIndex);
+        loadChallenge();
+    }
+
+    function prevChallenge() {
+        if (currentChallengeIndex > 0) {
+            currentChallengeIndex--;
+            localStorage.setItem('jsGameChallengeIndex', currentChallengeIndex);
+            loadChallenge();
+        }
+    }
+
+    function updateProgress() {
+    // Count how many unique questions have been solved
+    const solvedCount = Object.keys(userSolutions).length;
+    progressText.textContent = `Progress: ${solvedCount} / ${CHALLENGES.length}`;
+    
+    // Update badge count based on actual solved count
+    const earnedBadges = Math.floor(solvedCount / BADGE_INTERVAL);
+    badgeCount.textContent = `Badges: ${earnedBadges}`;
+}
+
+   function checkAndShowBadge(currentSolvedCount) {
+    const currentBadges = Math.floor(currentSolvedCount / BADGE_INTERVAL);
+    // Use the count before this solve to see if a new threshold was hit
+    const prevBadges = Math.floor((currentSolvedCount - 1) / BADGE_INTERVAL);
+    
+    if (currentBadges > prevBadges && currentBadges > 0) {
+        modalMessage.textContent = MOTIVATION_MESSAGES[(currentBadges - 1) % MOTIVATION_MESSAGES.length] + ` (Badge #${currentBadges})`;
+        badgeModal.classList.replace('hidden', 'flex');
+    }
+    updateBadgeUI();
+}
+
+    function hideBadgeModal() { badgeModal.classList.replace('flex', 'hidden'); }
+
+    window.onload = loadChallenge;
+</script>
+</body>
+</html>
